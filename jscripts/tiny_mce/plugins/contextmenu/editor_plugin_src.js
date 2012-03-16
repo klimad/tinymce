@@ -54,9 +54,17 @@
 					ed.selection.select(e.target);
 
 				t._getMenu(ed).showMenu(e.clientX || e.pageX, e.clientY || e.pageY);
-				Event.add(ed.getDoc(), 'click', function(e) {
-					hide(ed, e);
-				});
+				
+				// Hide the menu on mousedown or keydown anywhere.
+				Event.add(DOM.doc, 'mousedown', t._hideMenu);
+				Event.add(DOM.doc, 'keydown', t._hideMenu);
+				var editorList = tinymce.EditorManager.editors;
+				for (var edIdx = 0; edIdx < editorList.length; ++edIdx) {
+					if (editorList[edIdx].id !== ed.id) {
+						Event.add(editorList[edIdx].getDoc(), 'mousedown', t._hideMenu);
+						Event.add(editorList[edIdx].getDoc(), 'keydown', t._hideMenu);
+					}
+				}
 
 				ed.nodeChanged();
 			});
@@ -65,6 +73,10 @@
 				if (t._menu)
 					t._menu.removeAll();
 			});
+			
+			t._hideMenu = function(e) {
+				hide(ed, e);
+			};
 
 			function hide(ed, e) {
 				realCtrlKey = 0;
@@ -77,11 +89,33 @@
 				}
 
 				if (t._menu) {
-					t._menu.removeAll();
-					t._menu.destroy();
-					Event.remove(ed.getDoc(), 'click', hide);
-					t._menu = null;
+					// Walk up to see if this is the contextmenu itself. If so, do not remove the menu.
+					var targetIsContextMenu = false;
+					var el = e.target;
+					while (el && !targetIsContextMenu) {
+						if (el.tagName === 'DIV' && el.className.indexOf('mceDropDown') > -1) {
+							targetIsContextMenu = true;
+						}
+						el = el.parentElement;
+					}
+
+					if (!targetIsContextMenu) {
+						t._menu.removeAll();
+						t._menu.destroy();
+						t._menu = null;
+					}
+					
+					Event.remove(DOM.doc, 'mousedown', t._hideMenu);
+					Event.remove(DOM.doc, 'keydown', t._hideMenu);
+					var editorList = tinymce.EditorManager.editors;
+					for (var edIdx = 0; edIdx < editorList.length; ++edIdx) {
+						if (editorList[edIdx].id !== ed.id) {
+							Event.remove(editorList[edIdx].getDoc(), 'mousedown', t._hideMenu);
+							Event.remove(editorList[edIdx].getDoc(), 'keydown', t._hideMenu);
+						}
+					}
 				}
+
 			};
 
 			ed.onMouseDown.add(hide);
@@ -133,6 +167,10 @@
 			m.add({title : 'advanced.cut_desc', icon : 'cut', cmd : 'Cut'}).setDisabled(col);
 			m.add({title : 'advanced.copy_desc', icon : 'copy', cmd : 'Copy'}).setDisabled(col);
 			m.add({title : 'advanced.paste_desc', icon : 'paste', cmd : 'Paste'});
+			m.add({title : 'paste.paste_text_desc', icon : 'pastetext', cmd : 'PasteText'});
+			m.addSeparator();
+			m.add({title : 'advanced.removeformat_desc', icon : 'removeformat', cmd : 'RemoveFormat'}).setDisabled(col);
+
 
 			if ((el.nodeName == 'A' && !ed.dom.getAttrib(el, 'name')) || !col) {
 				m.addSeparator();

@@ -1038,7 +1038,7 @@
 								m.addSeparator();
 							}
 
-							m.add({title : 'table.desc', icon : 'table', cmd : 'mceInsertTable', value : {action : 'insert'}});
+							// m.add({title : 'table.desc', icon : 'table', cmd : 'mceInsertTable', value : {action : 'insert'}});
 							m.add({title : 'table.props_desc', icon : 'table_props', cmd : 'mceInsertTable'});
 							m.add({title : 'table.del', icon : 'delete_table', cmd : 'mceTableDelete'});
 							m.addSeparator();

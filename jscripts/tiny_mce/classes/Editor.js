@@ -1639,8 +1639,12 @@
 			if (!self.contentWindow) {
 				elm = DOM.get(self.id + "_ifr");
 
-				if (elm)
-					self.contentWindow = elm.contentWindow;
+				if (elm) {
+					try {
+						self.contentWindow = elm.contentWindow;
+					} catch (e) {
+					}
+				}
 			}
 
 			return self.contentWindow;
