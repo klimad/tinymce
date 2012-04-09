@@ -488,6 +488,10 @@
 				t.iframeHTML += '<link type="text/css" rel="stylesheet" href="' + t.contentCSS[i] + '" />';
 			}
 
+			for (i = 0; i < window.tinyMCEIFrameStyles.length; i++) {
+				t.iframeHTML += '<style type="text/css">' + window.tinyMCEIFrameStyles[i] + '</style>';
+			}
+
 			t.contentCSS = [];
 
 			bi = s.body_id || 'tinymce';
