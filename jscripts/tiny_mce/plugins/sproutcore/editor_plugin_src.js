@@ -8,8 +8,29 @@
  */
 
 (function() {
-	var $ = tinymce.$;
+	var $ = tinymce.$, defaults, getParam;
 
+	defaults = {
+		sproutcore_app_namespace: null,
+		sproutcore_dialog_open: null,
+		sproutcore_dialog_close: null
+	};
+
+	/**
+	 * Gets the specified parameter, or the plugin defined default value.
+	 *
+	 * @param {tinymce.Editor} ed Editor instance.
+	 * @param {String} name Parameter name.
+	 */
+	getParam = function(ed, name) {
+		return ed.getParam(name, defaults[name]);
+	};
+
+	/**
+	 * @class
+	 *
+	 * TinyMCE plugin for integration with SproutCore.
+	 */
 	tinymce.create('tinymce.plugins.SproutCorePlugin', {
 		/**
 		 * Initializes the plugin, this will be executed after the plugin has been created.
@@ -44,6 +65,62 @@
 				cmd : 'scOpenExpandedEditor',
 				ui : true
 			});
+		},
+
+		/**
+		 * Opens a dialog according to the app specified method.
+		 * Falls back to doing view.append.
+		 *
+		 * @param {tinymce.Editor} ed Editor instance.
+		 * @param {SC.PanelPane} view Dialog instance.
+		 */
+		openDialog: function(ed, view) {
+			var app, dialogOpen;
+
+			app = getParam(ed, 'sproutcore_app_namespace');
+			dialogOpen = getParam(ed, 'sproutcore_dialog_open');
+
+			if (tinymce.is(app, 'string')) {
+				app = window[app];
+			}
+
+			if (app && tinymce.is(dialogOpen, 'string')) {
+				dialogOpen = app[dialogOpen];
+			}
+
+			if (app && dialogOpen) {
+				dialogOpen.call(app, view);
+			} else {
+				view.append();
+			}
+		},
+
+		/**
+		 * Closes a dialog according to the app specified method.
+		 * Falls back to doing view.remove.
+		 *
+		 * @param {tinymce.Editor} ed Editor instance.
+		 * @param {SC.PanelPane} view Dialog instance.
+		 */
+		closeDialog: function(ed, view) {
+			var app, dialogClose;
+
+			app = getParam(ed, 'sproutcore_app_namespace');
+			dialogClose = getParam(ed, 'sproutcore_dialog_close');
+
+			if (tinymce.is(app, 'string')) {
+				app = window[app];
+			}
+
+			if (app && tinymce.is(dialogClose, 'string')) {
+				dialogClose = app[dialogClose];
+			}
+
+			if (app && dialogClose) {
+				dialogClose.call(app, view);
+			} else {
+				view.remove();
+			}
 		},
 
 		/**
@@ -89,7 +166,7 @@
 		 * @param {Object} p See documentation of tinymce.WindowManager.
 		 */
 		open : function(s, p) {
-			var self = this, ed = self.editor, owner, url, view, o;
+			var self = this, ed = self.editor, owner, url, o;
 
 			owner = TinySC.Utils.getOwnerView(ed);
 
@@ -120,11 +197,7 @@
 				// the selection when you focus on an element in the dialog.
 				o.controller.set('bookmark', TinySC.Utils.storeSelection(ed));
 
-				// TODO: genericize this. RMWeb has pushPane that it uses for
-				// dialogs, so this needs to allow the method for appending
-				// to be specified
-				view = o.viewClass.create({ owner: owner });
-				view.append();
+				this._openDialog(ed, o.viewClass, owner);
 			} else {
 				// We did not implement the requested window, pass through to the parent.
 				self.parent(s, p);
@@ -138,6 +211,21 @@
 
 			t.parent(w);
 		},*/
+
+		/**
+		 * Opens a dialog according to the app specified method.
+		 *
+		 * @param {tinymce.Editor} ed Editor instance.
+		 * @param {SC.PanelPane} viewClass Dialog class to create and open.
+		 * @param {SC.PanelPane} owner Dialog owner.
+		 */
+		_openDialog: function(ed, viewClass, owner) {
+			var view = viewClass.create({ owner: owner });
+
+			if (ed.plugins.sproutcore) {
+				ed.plugins.sproutcore.openDialog(ed, view);
+			}
+		},
 
 		/**
 		 * Setup the table properties dialog.

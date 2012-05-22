@@ -10,6 +10,11 @@
 (function() {
 	var $ = tinymce.$;
 
+	/**
+	 * @class
+	 *
+	 * TinyMCE plugin for general Seapine modifications.
+	 */
 	tinymce.create('tinymce.plugins.SeapinePlugin', {
 		/**
 		 * Initializes the plugin, this will be executed after the plugin has been created.

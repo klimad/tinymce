@@ -10,6 +10,11 @@
 (function() {
 	var $ = tinymce.$;
 
+	/**
+	 * @class
+	 *
+	 * TinyMCE plugin for Seapine specific SproutCore integration.
+	 */
 	tinymce.create('tinymce.plugins.SeapineSproutCorePlugin', {
 		/**
 		 * Initializes the plugin, this will be executed after the plugin has been created.
