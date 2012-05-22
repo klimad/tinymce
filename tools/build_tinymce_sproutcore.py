@@ -64,6 +64,8 @@ for plugin in PLUGINS:
                     'type': 'dir-img'})
 
 def main():
+   if not os.path.isdir(os.path.join(DEST, 'lib')):
+      os.mkdir(os.path.join(DEST, 'lib'))
    with open(os.path.join(DEST, 'lib', 'tiny_mce_combined.js'), 'w') as output:
       output.write('window.tinyMCEPreInit = { base: "/tinymce_sproutcore", suffix: "", query: "" };')
       output.write('window.tinyMCEIFrameStyles = window.tinyMCEIFrameStyles || [];')
@@ -93,6 +95,8 @@ def concatJS(full_path, url_path, plugin, output):
 
 def patchCSSImages(full_path, url_path, output):
    try:
+      if not os.path.isdir(os.path.join(DEST, 'resources', 'stylesheet', 'tinymce')):
+         os.mkdir(os.path.join(DEST, 'resources', 'stylesheet', 'tinymce'))
       with open(full_path) as f, open(os.path.join(DEST, 'resources', 'stylesheet', 'tinymce', os.path.basename(full_path)), 'w') as w:
          for line in f:
             w.write(re.sub(r'url\(.*/(.*)\)', r"sc_static('\1')", line))
@@ -112,7 +116,10 @@ def concatCSS(full_path, output):
       pass
 
 def copyImages(full_path):
+   images_dir = os.path.join(DEST, 'resources', 'images')
    try:
+      if not os.path.isdir(images_dir):
+         os.mkdir(images_dir)
       files = os.listdir(full_path)
       for f in files:
          shutil.copy(os.path.join(full_path, f), os.path.join(DEST, 'resources', 'images'))
