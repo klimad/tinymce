@@ -10,7 +10,7 @@ DEST = None
 THEME = 'advanced'
 SKIN = 'default'
 LANG = 'en'
-PLUGINS = ('contextmenu', 'paste', 'table', 'seapine', 'sproutcore', 'seapine_sproutcore')
+PLUGINS = ('paste', 'table', 'seapine', 'sproutcore', 'seapine_sproutcore')
 
 BASEPATH = os.path.join('..', 'jscripts', 'tiny_mce')
 TINYMCE_SRC_NAME = 'tiny_mce_jquery_src.js' if DEBUG else 'tiny_mce_jquery.js'
