@@ -88,6 +88,8 @@
 				dialogOpen = app[dialogOpen];
 			}
 
+			ed.makeReadOnly(true);
+
 			if (app && dialogOpen) {
 				dialogOpen.call(app, view);
 			} else {
@@ -115,6 +117,8 @@
 			if (app && tinymce.is(dialogClose, 'string')) {
 				dialogClose = app[dialogClose];
 			}
+
+			ed.makeReadOnly(false);
 
 			if (app && dialogClose) {
 				dialogClose.call(app, view);
@@ -192,11 +196,6 @@
 
 			if (o) {
 				// We implemented this window, its been setup, now open it.
-
-				// Always store the selection before opening a dialog. This works around IE clearing
-				// the selection when you focus on an element in the dialog.
-				o.controller.set('bookmark', TinySC.Utils.storeSelection(ed));
-
 				this._openDialog(ed, o.viewClass, owner);
 			} else {
 				// We did not implement the requested window, pass through to the parent.

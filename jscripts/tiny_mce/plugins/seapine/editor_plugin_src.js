@@ -45,7 +45,7 @@
 					],
 
 					alignfull : [
-						{selector : 'p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li', attributes : {'align' : 'justify'}},
+						{selector : 'p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li', attributes : {'align' : 'justify'}}
 					]
 				});
 			});
@@ -68,6 +68,56 @@
 					}
 					ed.execCommand('ForeColor', false, 'black');*/
 					selection.collapse(false);
+				}
+			});
+
+			tinymce.extend(ed, {
+				/**
+				 * Makes the editor readonly. This turns off contentEditable on the editor body element,
+				 * disables the toolbar buttons, and saves the selection so it can be restored when the
+				 * editor becomes editable again.
+				 *
+				 * @param {Boolean} ro Whether to make the editor readonly or not.
+				 */
+				makeReadOnly: function(ro) {
+					var body = ed.getBody(), $body = $(body), s = ed.settings, cm = ed.controlManager, buttons, i, l, c;
+					ro = !!ro;
+
+					if (!ed.plugins.seapine || (ro && ed.plugins.seapine.readonly) || (!ro && !ed.plugins.seapine.readonly)) {
+						// If readonly value didn't change, do nothing.
+						return;
+					}
+
+					ed.plugins.seapine.readonly = ro;
+
+					if (ro) {
+						// Save the selection before we make it read-only.
+						ed.plugins.seapine.bookmark = ed.selection.getBookmark(1);
+					}
+
+					// Turn off contentEditable and make the content unselectable.
+					body.contentEditable = !ro;
+					$body.toggleClass('mceReadOnly', ro);
+
+					// Disable all the toolbar buttons.
+					buttons = s.theme_advanced_buttons1.split(',');
+					buttons = buttons.concat(s.theme_advanced_buttons2.split(','));
+					for (i = 0, l = buttons.length; i < l; ++i) {
+						if (buttons[i] !== '|') {
+							c = cm.get(buttons[i]);
+							if (c) {
+								c.setDisabled(ro);
+							}
+						}
+					}
+
+					if (!ro) {
+						// Restore the selection after turning off read-only.
+						if (ed.plugins.seapine.bookmark) {
+							ed.selection.moveToBookmark(ed.plugins.seapine.bookmark);
+							ed.plugins.seapine.bookmark = null;
+						}
+					}
 				}
 			});
 

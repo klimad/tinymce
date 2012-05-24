@@ -62,6 +62,10 @@ for plugin in PLUGINS:
       FILES.append({'path': os.path.join(BASEPATH, 'plugins', plugin, 'img'),
                     'url': None,
                     'type': 'dir-img'})
+      if os.path.exists(os.path.join(BASEPATH, 'plugins', plugin, 'css', 'content.css')):
+         FILES.append({'path': os.path.join(BASEPATH, 'plugins', plugin, 'css', 'content.css'.format(plugin)),
+                       'url': 'plugins/{0}/css/content.css'.format(plugin),
+                       'type': 'iframe-css'})
 
 def main():
    if not os.path.isdir(os.path.join(DEST, 'lib')):
