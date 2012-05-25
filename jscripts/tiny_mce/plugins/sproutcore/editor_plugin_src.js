@@ -154,7 +154,6 @@
 		 * Constructs a new window manager instance.
 		 *
 		 * @constructor
-		 * @method SproutCoreWindowManager
 		 * @param {tinymce.Editor} ed Editor instance that the windows are bound to.
 		 */
 		SproutCoreWindowManager : function(ed) {
@@ -170,7 +169,7 @@
 		 * @param {Object} p See documentation of tinymce.WindowManager.
 		 */
 		open : function(s, p) {
-			var self = this, ed = self.editor, owner, url, o;
+			var self = this, ed = self.editor, owner, url, viewClass;
 
 			owner = TinySC.Utils.getOwnerView(ed);
 
@@ -178,25 +177,27 @@
 			if (url) {
 				if (/tinymce\/plugins\/table\/table\.htm/.test(url)) {
 					// Insert Table
-					o = this._openTableProperties(ed);
+					viewClass = this._setupTablePropertiesDialog(ed);
 				} else if (/tinymce\/plugins\/table\/row\.htm/.test(url)) {
 					// Row Properties
-					o = this._openRowCellProperties(ed, YES);
+					viewClass = this._setupRowCellPropertiesDialog(ed, YES);
 				} else if (/tinymce\/plugins\/table\/cell\.htm/.test(url)) {
 					// Cell Properties
-					o = this._openRowCellProperties(ed, NO);
-				} else if (/themes\/advanced\/image.htm/.test(url)) {
+					viewClass = this._setupRowCellPropertiesDialog(ed, NO);
+				} else if (/themes\/advanced\/image\.htm/.test(url)) {
 					// Insert Image
-					o = this._openImageProperties(ed);
-				} else if (/themes\/advanced\/link.htm/.test(url)) {
+					viewClass = this._setupImagePropertiesDialog(ed);
+				} else if (/themes\/advanced\/link\.htm/.test(url)) {
 					// Insert Link
-					o = this._openLinkProperties(ed);
+					viewClass = this._setupLinkPropertiesDialog(ed);
+				} else if (/themes\/advanced\/source_editor\.htm/.test(url)) {
+					viewClass = this._setupSourceEditorDialog(ed);
 				}
 			}
 
-			if (o) {
+			if (viewClass) {
 				// We implemented this window, its been setup, now open it.
-				this._openDialog(ed, o.viewClass, owner);
+				this._openDialog(ed, viewClass, owner);
 			} else {
 				// We did not implement the requested window, pass through to the parent.
 				self.parent(s, p);
@@ -229,13 +230,10 @@
 		/**
 		 * Setup the table properties dialog.
 		 *
-		 * @method _openTableProperties
 		 * @param {tinymce.Editor} ed Editor instance.
-		 * @return {Object} View class and controller.
-		 * @option {TinySC.TablePropertiesPane} viewClass View class to create.
-		 * @option {TinySC.tablePropertiesController} controller Controller for view.
+		 * @return {TinySC.TablePropertiesPane} View class to create.
 		 */
-		_openTableProperties: function(ed) {
+		_setupTablePropertiesDialog: function(ed) {
 			var viewClass, controller, selectedNode, tableElement, $tableElement,
 					cellPadding, cellSpacing, border, alignment, backgroundColor;
 
@@ -280,20 +278,17 @@
 				controller.set('insertMode', YES);
 			}
 
-			return { viewClass: viewClass, controller: controller };
+			return viewClass;
 		},
 
 		/**
 		 * Setup the row/cell properties dialog.
 		 *
-		 * @method _openRowCellProperties
 		 * @param {tinymce.Editor} ed Editor instance.
 		 * @param {Boolean} rowMode Setup for row or cell mode.
-		 * @return {Object} View class and controller.
-		 * @option {TinySC.TableRowCellPropertiesPane} viewClass View class to create.
-		 * @option {TinySC.tableRowCellPropertiesController} controller Controller for view.
+		 * @return {TinySC.TableRowCellPropertiesPane} View class to create.
 		 */
-		_openRowCellProperties: function(ed, rowMode) {
+		_setupRowCellPropertiesDialog: function(ed, rowMode) {
 			var viewClass, controller, selectedNode, rowCellElement, horizontalAlignment, verticalAlignment, backgroundColor;
 
 			viewClass = TinySC.TableRowCellPropertiesPane;
@@ -316,19 +311,16 @@
 				.endPropertyChanges();
 			}
 
-			return { viewClass: viewClass, controller: controller };
+			return viewClass;
 		},
 
 		/**
 		 * Setup the image properties dialog.
 		 *
-		 * @method _openImageProperties
 		 * @param {tinymce.Editor} ed Editor instance.
-		 * @return {Object} View class and controller.
-		 * @option {TinySC.InsertImagePane} viewClass View class to create.
-		 * @option {TinySC.insertImageController} controller Controller for view.
+		 * @return {TinySC.InsertImagePane} View class to create.
 		 */
-		_openImageProperties: function(ed) {
+		_setupImagePropertiesDialog: function(ed) {
 			var viewClass, controller, selectedNode, percentWidth, percentHeight;
 
 			// Insert image pane and controller.
@@ -368,19 +360,16 @@
 				controller.set('insertMode', true);
 			}
 
-			return { viewClass: viewClass, controller: controller };
+			return viewClass;
 		},
 
 		/**
 		 * Setup the link properties dialog.
 		 *
-		 * @method _openLinkProperties
 		 * @param {tinymce.Editor} ed Editor instance.
-		 * @return {Object} View class and controller.
-		 * @option {TinySC.InsertLinkPane} viewClass View class to create.
-		 * @option {TinySC.insertLinkController} controller Controller for view.
+		 * @return {TinySC.InsertLinkPane} View class to create.
 		 */
-		_openLinkProperties: function(ed) {
+		_setupLinkPropertiesDialog: function(ed) {
 			var viewClass, controller, selectedNode, anchorNode, tmpDiv;
 
 			// Insert Link pane and controller.
@@ -426,7 +415,17 @@
 				TinySC.insertLinkController.set('displayTextEditable', false);
 			}
 
-			return { viewClass: viewClass, controller: controller };
+			return viewClass;
+		},
+
+		/**
+		 * Setup the source editor dialog.
+		 *
+		 * @param {tinymce.Editor} ed Editor instance.
+		 * @return {TinySC.SourceEditorPane} View class to create.
+		 */
+		_setupSourceEditorDialog: function(ed) {
+			return TinySC.SourceEditorPane;
 		}
 	});
 
