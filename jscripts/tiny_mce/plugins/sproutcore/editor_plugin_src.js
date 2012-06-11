@@ -65,6 +65,17 @@
 				cmd : 'scOpenExpandedEditor',
 				ui : true
 			});
+
+			// Add paste post processing.
+			if (ed.plugins.paste) {
+				ed.plugins.paste.onPostProcess.add(function(pl, o) {
+					var view = TinySC.Utils.getOwnerView(ed);
+
+					if (view) {
+						view.onPaste(ed, o);
+					}
+				});
+			}
 		},
 
 		/**

@@ -10,7 +10,7 @@ DEST = None
 THEME = 'advanced'
 SKIN = 'default'
 LANG = 'en'
-PLUGINS = ('paste', 'table', 'seapine', 'sproutcore', 'seapine_sproutcore')
+PLUGINS = ('paste', 'table', 'seapine', 'sproutcore')
 
 BASEPATH = os.path.join('..', 'jscripts', 'tiny_mce')
 TINYMCE_SRC_NAME = 'tiny_mce_jquery_src.js' if DEBUG else 'tiny_mce_jquery.js'
@@ -55,7 +55,7 @@ for plugin in PLUGINS:
    FILES.append({'path': os.path.join(BASEPATH, 'plugins', plugin, 'langs', LANG_DLG_SRC_NAME),
                  'url': 'plugins/{0}/langs/{1}'.format(plugin, LANG_DLG_SRC_NAME),
                  'type': 'js'})
-   if plugin in ('seapine', 'sproutcore', 'seapine_sproutcore'):
+   if plugin in ('seapine', 'sproutcore'):
       FILES.append({'path': os.path.join(BASEPATH, 'plugins', plugin, 'css', '{0}.css'.format(plugin)),
                     'url': 'plugins/{0}/css/{0}.css'.format(plugin),
                     'type': 'css'})
