@@ -99,7 +99,9 @@
 				dialogOpen = app[dialogOpen];
 			}
 
-			ed.makeReadOnly(true);
+			if (!view.get('editorEnabledWhileOpen')) {
+				ed.makeReadOnly(true);
+			}
 
 			if (app && dialogOpen) {
 				dialogOpen.call(app, view);
@@ -180,7 +182,7 @@
 		 * @param {Object} p See documentation of tinymce.WindowManager.
 		 */
 		open : function(s, p) {
-			var self = this, ed = self.editor, owner, url, viewClass;
+			var self = this, ed = self.editor, owner, extraOptions, url, viewClass;
 
 			owner = TinySC.Utils.getOwnerView(ed);
 
@@ -201,6 +203,9 @@
 				} else if (/themes\/advanced\/link\.htm/.test(url)) {
 					// Insert Link
 					viewClass = this._setupLinkPropertiesDialog(ed);
+				} else if (/themes\/advanced\/color_picker\.htm/.test(url)) {
+					viewClass = this._setupColorPicker(ed);
+					extraOptions = { value: p.input_color, applyFunction: p.func };
 				} else if (/themes\/advanced\/source_editor\.htm/.test(url)) {
 					viewClass = this._setupSourceEditorDialog(ed);
 				}
@@ -208,7 +213,7 @@
 
 			if (viewClass) {
 				// We implemented this window, its been setup, now open it.
-				this._openDialog(ed, viewClass, owner);
+				this._openDialog(ed, viewClass, owner, extraOptions);
 			} else {
 				// We did not implement the requested window, pass through to the parent.
 				self.parent(s, p);
@@ -229,9 +234,16 @@
 		 * @param {tinymce.Editor} ed Editor instance.
 		 * @param {SC.PanelPane} viewClass Dialog class to create and open.
 		 * @param {SC.PanelPane} owner Dialog owner.
+		 * @param {Object} extraOptions Optional extra options.
 		 */
-		_openDialog: function(ed, viewClass, owner) {
-			var view = viewClass.create({ owner: owner });
+		_openDialog: function(ed, viewClass, owner, opts) {
+			var view;
+
+			opts = SC.mixin(opts, {
+				owner: owner
+			});
+
+			view = viewClass.create(opts);
 
 			if (ed.plugins.sproutcore) {
 				ed.plugins.sproutcore.openDialog(ed, view);
@@ -427,6 +439,16 @@
 			}
 
 			return viewClass;
+		},
+
+		/**
+		 * Setup the color picker dialog.
+		 *
+		 * @param {tinymce.Editor} ed Editor instance.
+		 * @return {TinySC.PopupColorPicker} View class to create.
+		 */
+		_setupColorPicker: function(ed) {
+			return TinySC.PopupColorPicker;
 		},
 
 		/**
