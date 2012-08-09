@@ -199,7 +199,7 @@
 					viewClass = this._setupRowCellPropertiesDialog(ed, NO);
 				} else if (/themes\/advanced\/image\.htm/.test(url)) {
 					// Insert Image
-					viewClass = this._setupImagePropertiesDialog(ed);
+					viewClass = this._setupImagePropertiesDialog(ed, owner);
 				} else if (/themes\/advanced\/link\.htm/.test(url)) {
 					// Insert Link
 					viewClass = this._setupLinkPropertiesDialog(ed);
@@ -341,10 +341,11 @@
 		 * Setup the image properties dialog.
 		 *
 		 * @param {tinymce.Editor} ed Editor instance.
+		 * @param {TinySC.WysiwygView} owner Dialog owner.
 		 * @return {TinySC.InsertImagePane} View class to create.
 		 */
-		_setupImagePropertiesDialog: function(ed) {
-			var viewClass, controller, selectedNode, percentWidth, percentHeight;
+		_setupImagePropertiesDialog: function(ed, owner) {
+			var viewClass, controller, delegate, selectedNode, percentWidth, percentHeight;
 
 			// Insert image pane and controller.
 			viewClass = TinySC.InsertImagePane;
@@ -381,6 +382,15 @@
 			} else {
 				// No image was selected, we are inserting a new image.
 				controller.set('insertMode', true);
+			}
+
+			delegate = controller.get('delegate');
+			if (delegate) {
+				delegate
+					.set('entityType', owner.get('entityType'))
+					.set('itemID', owner.get('itemID'))
+					.set('reportedBy', owner.get('reportedBy'))
+					.set('fieldID', owner.get('fieldID'));
 			}
 
 			return viewClass;
