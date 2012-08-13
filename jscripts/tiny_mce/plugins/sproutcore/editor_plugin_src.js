@@ -388,7 +388,7 @@
 			if (delegate) {
 				delegate
 					.set('entityType', owner.get('entityType'))
-					.set('itemID', owner.get('itemID'))
+					.set('entityID', owner.get('entityID'))
 					.set('reportedBy', owner.get('reportedBy'))
 					.set('fieldID', owner.get('fieldID'));
 			}
