@@ -197,6 +197,9 @@
 				} else if (/tinymce\/plugins\/table\/cell\.htm/.test(url)) {
 					// Cell Properties
 					viewClass = this._setupRowCellPropertiesDialog(ed, NO);
+				} else if (/tinymce\/plugins\/table\/merge_cells\.htm/.test(url)) {
+					// Merge Cells
+					viewClass = this._setupMergeCellsDialog(ed, p.rows, p.cols, p.onaction);
 				} else if (/themes\/advanced\/image\.htm/.test(url)) {
 					// Insert Image
 					viewClass = this._setupImagePropertiesDialog(ed, owner);
@@ -333,6 +336,30 @@
 					.set('backgroundColor', backgroundColor)
 				.endPropertyChanges();
 			}
+
+			return viewClass;
+		},
+
+		/**
+		 * Setup the merge cells dialog.
+		 *
+		 * @param {tinymce.Editor} ed Editor instance.
+		 * @param {Number} rows Initial number of merged rows.
+		 * @param {Number} cols Initial number of merged columns.
+		 * @param {Function} mergeAction Function that does the cell merge.
+		 * @return {TinySC.TableMergeCellsPane} View class to create.
+		 */
+		_setupMergeCellsDialog: function(ed, rows, cols, mergeAction) {
+			var viewClass, controller;
+
+			viewClass = TinySC.TableMergeCellsPane;
+			controller = TinySC.tableMergeCellsController;
+
+			controller.beginPropertyChanges()
+				.set('mergeRows', rows)
+				.set('mergeColumns', cols)
+				.set('mergeAction', mergeAction)
+			.endPropertyChanges();
 
 			return viewClass;
 		},
