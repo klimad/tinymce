@@ -118,6 +118,15 @@
 							ed.plugins.seapine.bookmark = null;
 						}
 					}
+				},
+
+				/**
+				 * Gets the readonly status of the editor.
+				 *
+				 * @return {Boolean} true if readonly, false otherwise
+				 */
+				getReadOnly: function() {
+					return ed.plugins.seapine ? ed.plugins.seapine.readonly : false;
 				}
 			});
 
