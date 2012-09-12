@@ -76,6 +76,25 @@
 					}
 				});
 			}
+
+			tinymce.extend(ed, {
+				/**
+				 * Stores the editor's current selection.
+				 */
+				storeSelection: function() {
+					this.plugins.sproutcore.bookmark = this.selection.getBookmark(1);
+				},
+
+				/**
+				 * Restores the previously saved editor selection.
+				 */
+				restoreSelection: function() {
+					if (this.plugins.sproutcore.bookmark) {
+						this.selection.moveToBookmark(this.plugins.sproutcore.bookmark);
+						this.plugins.sproutcore.bookmark = null;
+					}
+				}
+			});
 		},
 
 		/**

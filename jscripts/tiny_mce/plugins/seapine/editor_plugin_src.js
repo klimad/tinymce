@@ -80,19 +80,19 @@
 				 * @param {Boolean} ro Whether to make the editor readonly or not.
 				 */
 				makeReadOnly: function(ro) {
-					var body = ed.getBody(), $body = $(body), s = ed.settings, cm = ed.controlManager, buttons, i, l, c;
+					var body = this.getBody(), $body = $(body), s = this.settings, cm = this.controlManager, buttons, i, l, c;
 					ro = !!ro;
 
-					if (!ed.plugins.seapine || (ro && ed.plugins.seapine.readonly) || (!ro && !ed.plugins.seapine.readonly)) {
+					if (!this.plugins.seapine || (ro && this.plugins.seapine.readonly) || (!ro && !this.plugins.seapine.readonly)) {
 						// If readonly value didn't change, do nothing.
 						return;
 					}
 
-					ed.plugins.seapine.readonly = ro;
+					this.plugins.seapine.readonly = ro;
 
 					if (ro) {
 						// Save the selection before we make it read-only.
-						ed.plugins.seapine.bookmark = ed.selection.getBookmark(1);
+						this.storeSelection();
 					}
 
 					// Turn off contentEditable and make the content unselectable.
@@ -113,10 +113,7 @@
 
 					if (!ro) {
 						// Restore the selection after turning off read-only.
-						if (ed.plugins.seapine.bookmark) {
-							ed.selection.moveToBookmark(ed.plugins.seapine.bookmark);
-							ed.plugins.seapine.bookmark = null;
-						}
+						this.restoreSelection();
 					}
 				},
 
@@ -126,7 +123,7 @@
 				 * @return {Boolean} true if readonly, false otherwise
 				 */
 				getReadOnly: function() {
-					return ed.plugins.seapine ? ed.plugins.seapine.readonly : false;
+					return this.plugins.seapine ? this.plugins.seapine.readonly : false;
 				}
 			});
 
