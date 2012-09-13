@@ -82,7 +82,9 @@
 				 * Stores the editor's current selection.
 				 */
 				storeSelection: function() {
-					this.plugins.sproutcore.bookmark = this.selection.getBookmark(1);
+					if (this.selection) {
+						this.plugins.sproutcore.bookmark = this.selection.getBookmark(1);
+					}
 				},
 
 				/**
