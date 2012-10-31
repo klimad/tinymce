@@ -147,7 +147,7 @@
 			// hidden div and placing the caret inside it and after the browser paste
 			// is done it grabs that contents and processes that
 			function grabContent(e) {
-				var n, or, rng, oldRng, sel = ed.selection, dom = ed.dom, body = ed.getBody(), posY, textContent;
+				var n, or, rng, oldRng, sel = ed.selection, dom = ed.dom, body = ed.getBody(), posY, textContent, node;
 
 				// Check if browser supports direct plaintext access
 				if (e.clipboardData || dom.doc.dataTransfer) {
@@ -166,11 +166,22 @@
 				// Create container to paste into
 				n = dom.add(body, 'div', {id : '_mcePaste', 'class' : 'mcePaste', 'data-mce-bogus' : '1'}, '\uFEFF\uFEFF');
 
-				// If contentEditable mode we need to find out the position of the closest element
-				if (body != ed.getDoc().body)
-					posY = dom.getPos(ed.selection.getStart(), body).y;
-				else
-					posY = body.scrollTop + dom.getViewPort(ed.getWin()).y;
+				if (sel) {
+					// Get the position of our node. offsetTop is the top of the node relative to the top of
+					// the editor. If this is a long paragraph near the top of the editor, posY is probably
+					// much higher in the editor compared to the cursor position...add offsetHeight
+					node = sel.getNode();
+					if (node) {
+						posY = node.offsetTop + node.offsetHeight;
+					}
+				} else {
+					// If contentEditable mode we need to find out the position of the closest element
+					if (body != ed.getDoc().body) {
+						posY = dom.getPos(ed.selection.getStart(), body).y;
+					} else {
+						posY = body.scrollTop + dom.getViewPort(ed.getWin()).y;
+					}
+				}
 
 				// Styles needs to be applied after the element is added to the document since WebKit will otherwise remove all styles
 				// If also needs to be in view on IE or the paste would fail
