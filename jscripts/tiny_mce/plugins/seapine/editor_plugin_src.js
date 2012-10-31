@@ -96,8 +96,10 @@
 					}
 
 					// Turn off contentEditable and make the content unselectable.
-					body.contentEditable = !ro;
-					$body.toggleClass('mceReadOnly', ro);
+					if (body) {
+						body.contentEditable = !ro;
+						$body.toggleClass('mceReadOnly', ro);
+					}
 
 					// Disable all the toolbar buttons.
 					buttons = s.theme_advanced_buttons1.split(',');

@@ -52,7 +52,10 @@
 		 * @return {tinymce.ui.Control} Control instance or undefined.
 		 */
 		get : function(id) {
-			return this.controls[this.prefix + id] || this.controls[id];
+			if (this.controls) {
+				return this.controls[this.prefix + id] || this.controls[id];
+			}
+			return null;
 		},
 
 		/**

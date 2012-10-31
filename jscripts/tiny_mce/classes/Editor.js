@@ -1680,7 +1680,9 @@
 		 * @return {Element} Iframe body element.
 		 */
 		getBody : function() {
-			return this.bodyElement || this.getDoc().body;
+			if (this.bodyElement) { return this.bodyElement; }
+			if (this.getDoc()) { return this.getDoc().body; }
+			return null;
 		},
 
 		/**

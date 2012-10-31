@@ -91,7 +91,7 @@
 				 * Restores the previously saved editor selection.
 				 */
 				restoreSelection: function() {
-					if (this.plugins.sproutcore.bookmark) {
+					if (this.plugins.sproutcore.bookmark && this.selection) {
 						this.selection.moveToBookmark(this.plugins.sproutcore.bookmark);
 						this.plugins.sproutcore.bookmark = null;
 					}
