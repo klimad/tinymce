@@ -50,27 +50,6 @@
 				});
 			});
 
-			ed.addCommand('unlink', function(ui, value) {
-				var doc = ed.getDoc(), selection = ed.selection, node = selection.getNode();
-				while (node.tagName !== 'A' && node.parentNode) {
-					node = node.parentNode;
-				}
-
-				if (node.tagName === 'A') {
-					if (selection.isCollapsed()) {
-						selection.select(node);
-					}
-
-					doc.execCommand('unlink', ui, value);
-					// TODO: might not need this section?
-					/*if (ed.queryCommandState('underline')) {
-						doc.execCommand('underline', false, null);
-					}
-					ed.execCommand('ForeColor', false, 'black');*/
-					selection.collapse(false);
-				}
-			});
-
 			tinymce.extend(ed, {
 				/**
 				 * Makes the editor readonly. This turns off contentEditable on the editor body element,
