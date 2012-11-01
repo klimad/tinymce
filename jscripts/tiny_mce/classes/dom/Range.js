@@ -56,7 +56,8 @@
 			cloneContents : cloneContents,
 			insertNode : insertNode,
 			surroundContents : surroundContents,
-			cloneRange : cloneRange
+			cloneRange : cloneRange,
+			toStringIE : toStringIE
 		});
 
 		function createDocumentFragment() {
@@ -696,7 +697,18 @@
 
 			n.parentNode.removeChild(n);
 		};
+
+		function toStringIE() {
+			return dom.create('body', null, cloneContents()).outerText;
+		}
+		
+		return t;
 	};
 
 	ns.Range = Range;
+
+	// Older IE versions doesn't let you override toString by it's constructor so we have to stick it in the prototype
+	Range.prototype.toString = function() {
+		return this.toStringIE();
+	};
 })(tinymce.dom);

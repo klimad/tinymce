@@ -38,19 +38,21 @@
 			TreeWalker = tinymce.dom.TreeWalker,
 			rangeUtils = new tinymce.dom.RangeUtils(dom),
 			isValid = ed.schema.isValidChild,
+			isArray = tinymce.isArray,
 			isBlock = dom.isBlock,
 			forcedRootBlock = ed.settings.forced_root_block,
 			nodeIndex = dom.nodeIndex,
-			INVISIBLE_CHAR = tinymce.isGecko ? '\u200B' : '\uFEFF',
+			INVISIBLE_CHAR = '\uFEFF',
 			MCE_ATTR_RE = /^(src|href|style)$/,
 			FALSE = false,
 			TRUE = true,
+			formatChangeData,
 			undef,
 			getContentEditable = dom.getContentEditable;
 
-		function isArray(obj) {
-			return obj instanceof Array;
-		};
+		function isTextBlock(name) {
+			return !!ed.schema.getTextBlocks()[name.toLowerCase()];
+		}
 
 		function getParents(node, selector) {
 			return dom.getParents(node, selector, dom.getRoot());
@@ -994,7 +996,7 @@
 						matchedFormatNames.push(name);
 					}
 				}
-			});
+			}, dom.getRoot());
 
 			return matchedFormatNames;
 		};
@@ -1030,6 +1032,70 @@
 			return FALSE;
 		};
 
+		/**
+		 * Executes the specified callback when the current selection matches the formats or not.
+		 *
+		 * @method formatChanged
+		 * @param {String} formats Comma separated list of formats to check for.
+		 * @param {function} callback Callback with state and args when the format is changed/toggled on/off.
+		 * @param {Boolean} similar True/false state if the match should handle similar or exact formats.
+		 */
+		function formatChanged(formats, callback, similar) {
+			var currentFormats;
+
+			// Setup format node change logic
+			if (!formatChangeData) {
+				formatChangeData = {};
+				currentFormats = {};
+
+				ed.onNodeChange.addToTop(function(ed, cm, node) {
+					var parents = getParents(node), matchedFormats = {};
+
+					// Check for new formats
+					each(formatChangeData, function(callbacks, format) {
+						each(parents, function(node) {
+							if (matchNode(node, format, {}, callbacks.similar)) {
+								if (!currentFormats[format]) {
+									// Execute callbacks
+									each(callbacks, function(callback) {
+										callback(true, {node: node, format: format, parents: parents});
+									});
+
+									currentFormats[format] = callbacks;
+								}
+
+								matchedFormats[format] = callbacks;
+								return false;
+							}
+						});
+					});
+
+					// Check if current formats still match
+					each(currentFormats, function(callbacks, format) {
+						if (!matchedFormats[format]) {
+							delete currentFormats[format];
+
+							each(callbacks, function(callback) {
+								callback(false, {node: node, format: format, parents: parents});
+							});
+						}
+					});
+				});
+			}
+
+			// Add format listeners
+			each(formats.split(','), function(format) {
+				if (!formatChangeData[format]) {
+					formatChangeData[format] = [];
+					formatChangeData[format].similar = similar;
+				}
+
+				formatChangeData[format].push(callback);
+			});
+
+			return this;
+		};
+
 		// Expose to public
 		tinymce.extend(this, {
 			get : get,
@@ -1040,7 +1106,8 @@
 			match : match,
 			matchAll : matchAll,
 			matchNode : matchNode,
-			canApply : canApply
+			canApply : canApply,
+			formatChanged: formatChanged
 		});
 
 		// Initialize
@@ -1171,6 +1238,10 @@
 				siblingName = start ? 'previousSibling' : 'nextSibling';
 				root = dom.getRoot();
 
+				function isBogusBr(node) {
+					return node.nodeName == "BR" && node.getAttribute('data-mce-bogus') && !node.nextSibling;
+				};
+
 				// If it's a text node and the offset is inside the text
 				if (container.nodeType == 3 && !isWhiteSpaceNode(container)) {
 					if (start ? startOffset > 0 : endOffset < container.nodeValue.length) {
@@ -1185,7 +1256,7 @@
 
 					// Walk left/right
 					for (sibling = parent[siblingName]; sibling; sibling = sibling[siblingName]) {
-						if (!isBookmarkNode(sibling) && !isWhiteSpaceNode(sibling)) {
+						if (!isBookmarkNode(sibling) && !isWhiteSpaceNode(sibling) && !isBogusBr(sibling)) {
 							return parent;
 						}
 					}
@@ -1344,7 +1415,7 @@
 
 				// Expand to first wrappable block element or any block element
 				if (!node)
-					node = dom.getParent(container.nodeType == 3 ? container.parentNode : container, isBlock);
+					node = dom.getParent(container.nodeType == 3 ? container.parentNode : container, isTextBlock);
 
 				// Exclude inner lists from wrapping
 				if (node && format[0].wrapper)
@@ -2073,6 +2144,21 @@
 				}
 			};
 
+			// Checks if the parent caret container node isn't empty if that is the case it
+			// will remove the bogus state on all children that isn't empty
+			function unmarkBogusCaretParents() {
+				var i, caretContainer, node;
+
+				caretContainer = getParentCaretContainer(selection.getStart());
+				if (caretContainer && !dom.isEmpty(caretContainer)) {
+					tinymce.walk(caretContainer, function(node) {
+						if (node.nodeType == 1 && node.id !== caretContainerId && !dom.isEmpty(node)) {
+							dom.setAttrib(node, 'data-mce-bogus', null);
+						}
+					}, 'childNodes');
+				}
+			};
+
 			// Only bind the caret events once
 			if (!self._hasCaretEvents) {
 				// Mark current caret container elements as bogus when getting the contents so we don't end up with empty elements
@@ -2092,6 +2178,7 @@
 				tinymce.each('onMouseUp onKeyUp'.split(' '), function(name) {
 					ed[name].addToTop(function() {
 						removeCaretContainer();
+						unmarkBogusCaretParents();
 					});
 				});
 
@@ -2102,16 +2189,12 @@
 					if (keyCode == 8 || keyCode == 37 || keyCode == 39) {
 						removeCaretContainer(getParentCaretContainer(selection.getStart()));
 					}
+
+					unmarkBogusCaretParents();
 				});
 
 				// Remove bogus state if they got filled by contents using editor.selection.setContent
-				selection.onSetContent.add(function() {
-					dom.getParent(selection.getStart(), function(node) {
-						if (node.id !== caretContainerId && dom.getAttrib(node, 'data-mce-bogus') && !dom.isEmpty(node)) {
-							dom.setAttrib(node, 'data-mce-bogus', null);
-						}
-					});
-				});
+				selection.onSetContent.add(unmarkBogusCaretParents);
 
 				self._hasCaretEvents = true;
 			}

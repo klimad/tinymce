@@ -12,7 +12,8 @@
  * This file includes fixes for various browser quirks it's made to make it easy to add/remove browser specific fixes.
  */
 tinymce.util.Quirks = function(editor) {
-	var VK = tinymce.VK, BACKSPACE = VK.BACKSPACE, DELETE = VK.DELETE, dom = editor.dom, selection = editor.selection, settings = editor.settings;
+	var VK = tinymce.VK, BACKSPACE = VK.BACKSPACE, DELETE = VK.DELETE, dom = editor.dom, selection = editor.selection,
+		settings = editor.settings, parser = editor.parser, serializer = editor.serializer;
 
 	/**
 	 * Executes a command with a specific state this can be to enable/disable browser editing features.
@@ -24,6 +25,25 @@ tinymce.util.Quirks = function(editor) {
 			// Ignore
 		}
 	}
+
+	/**
+	 * Returns current IE document mode.
+	 */
+	function getDocumentMode() {
+		var documentMode = editor.getDoc().documentMode;
+
+		return documentMode ? documentMode : 6;
+	};
+
+	/**
+	 * Returns true/false if the event is prevented or not.
+	 *
+	 * @param {Event} e Event object.
+	 * @return {Boolean} true/false if the event is prevented or not.
+	 */
+	function isDefaultPrevented(e) {
+		return e.isDefaultPrevented();
+	};
 
 	/**
 	 * Fixes a WebKit bug when deleting contents using backspace or delete key.
@@ -91,7 +111,7 @@ tinymce.util.Quirks = function(editor) {
 			var isDelete;
 
 			isDelete = e.keyCode == DELETE;
-			if (!e.isDefaultPrevented() && (isDelete || e.keyCode == BACKSPACE) && !VK.modifierPressed(e)) {
+			if (!isDefaultPrevented(e) && (isDelete || e.keyCode == BACKSPACE) && !VK.modifierPressed(e)) {
 				e.preventDefault();
 				removeMergedFormatSpans(isDelete);
 			}
@@ -101,86 +121,74 @@ tinymce.util.Quirks = function(editor) {
 	};
 	
 	/**
-	 * Makes sure that the editor body becomes empty if the selection is the whole body contents.
+	 * Makes sure that the editor body becomes empty when backspace or delete is pressed in empty editors.
 	 *
-	 * Example a selection like this would empty the editor:
-	 * <p><b>[text</b></p><p><i>text]</i></p>
-	 *
-	 * But not a selection like this:
-	 * <p><b>[text]</b></p>
-	 *
-	 * Since it should produce:
+	 * For example:
 	 * <p><b>|</b></p>
+	 *
+	 * Or:
+	 * <h1>|</h1>
+	 *
+	 * Or:
+	 * [<h1></h1>]
 	 */
 	function emptyEditorWhenDeleting() {
-		function getEndPointNode(rng, start) {
-			var container, offset, prefix = start ? 'start' : 'end';
+		function serializeRng(rng) {
+			var body = dom.create("body");
+			var contents = rng.cloneContents();
+			body.appendChild(contents);
+			return selection.serializer.serialize(body, {format: 'html'});
+		}
 
-			container = rng[prefix + 'Container'];
-			offset = rng[prefix + 'Offset'];
+		function allContentsSelected(rng) {
+			var selection = serializeRng(rng);
 
-			// Resolve indexed container
-			if (container.nodeType == 1 && container.hasChildNodes()) {
-				container = container.childNodes[Math.min(start ? offset : (offset > 0 ? offset - 1 : 0), container.childNodes.length - 1)]
-			}
+			var allRng = dom.createRng();
+			allRng.selectNode(editor.getBody());
 
-			return container;
-		};
+			var allSelection = serializeRng(allRng);
+			return selection === allSelection;
+		}
 
-		function isAtStartEndOfBody(rng, start) {
-			var container, offset, root, childNode, prefix = start ? 'start' : 'end', isAfter;
+		editor.onKeyDown.add(function(editor, e) {
+			var keyCode = e.keyCode, isCollapsed;
 
-			container = rng[prefix + 'Container'];
-			offset = rng[prefix + 'Offset'];
-			root = dom.getRoot();
+			// Empty the editor if it's needed for example backspace at <p><b>|</b></p>
+			if (!isDefaultPrevented(e) && (keyCode == DELETE || keyCode == BACKSPACE)) {
+				isCollapsed = editor.selection.isCollapsed();
 
-			// Resolve indexed container
-			if (container.nodeType == 1) {
-				isAfter = offset >= container.childNodes.length;
-				container = getEndPointNode(rng, start);
-
-				if (container.nodeType == 3) {
-					offset = start && !isAfter ? 0 : container.nodeValue.length;
-				}
-			}
-
-			// Check if start/end is in the middle of text
-			if (container.nodeType == 3 && ((start && offset > 0) || (!start && offset < container.nodeValue.length))) {
-				return false;
-			}
-
-			// Walk up the DOM tree to see if the endpoint is at the beginning/end of body
-			while (container !== root) {
-				childNode = container.parentNode[start ? 'firstChild' : 'lastChild'];
-
-				// If first/last element is a BR then jump to it's sibling in case: <p>x<br></p>
-				if (childNode.nodeName == "BR") {
-					childNode = childNode[start ? 'nextSibling' : 'previousSibling'] || childNode;
+				// Selection is collapsed but the editor isn't empty
+				if (isCollapsed && !dom.isEmpty(editor.getBody())) {
+					return;
 				}
 
-				// If the childNode isn't the container node then break in case <p><span>A</span>[X]</p>
-				if (childNode !== container) {
-					return false;
+				// IE deletes all contents correctly when everything is selected
+				if (tinymce.isIE && !isCollapsed) {
+					return;
 				}
 
-				container = container.parentNode;
+				// Selection isn't collapsed but not all the contents is selected
+				if (!isCollapsed && !allContentsSelected(editor.selection.getRng())) {
+					return;
+				}
+
+				// Manually empty the editor
+				editor.setContent('');
+				editor.selection.setCursorLocation(editor.getBody(), 0);
+				editor.nodeChanged();
 			}
+		});
+	};
 
-			return true;
-		};
-
-		editor.onKeyDown.addToTop(function(editor, e) {
-			var rng, keyCode = e.keyCode;
-
-			if (!e.isDefaultPrevented() && (keyCode == DELETE || keyCode == BACKSPACE)) {
-				rng = selection.getRng(true);
-
-				if (isAtStartEndOfBody(rng, true) && isAtStartEndOfBody(rng, false) &&
-					(rng.collapsed || dom.findCommonAncestor(getEndPointNode(rng, true), getEndPointNode(rng)) === dom.getRoot())) {
-					editor.setContent('');
-					editor.nodeChanged();
-					e.preventDefault();
-				}
+	/**
+	 * WebKit doesn't select all the nodes in the body when you press Ctrl+A.
+	 * This selects the whole body so that backspace/delete logic will delete everything
+	 */
+	function selectAll() {
+		editor.onKeyDown.add(function(editor, e) {
+			if (!isDefaultPrevented(e) && e.keyCode == 65 && VK.metaKeyPressed(e)) {
+				e.preventDefault();
+				editor.execCommand('SelectAll');
 			}
 		});
 	};
@@ -222,7 +230,7 @@ tinymce.util.Quirks = function(editor) {
 	 */
 	function removeHrOnBackspace() {
 		editor.onKeyDown.add(function(editor, e) {
-			if (!e.isDefaultPrevented() && e.keyCode === BACKSPACE) {
+			if (!isDefaultPrevented(e) && e.keyCode === BACKSPACE) {
 				if (selection.isCollapsed() && selection.getRng(true).startOffset === 0) {
 					var node = selection.getNode();
 					var previousSibling = node.previousSibling;
@@ -245,7 +253,7 @@ tinymce.util.Quirks = function(editor) {
 		// wouldn't get proper focus if the user clicked on the HTML element
 		if (!Range.prototype.getClientRects) { // Detect getClientRects got introduced in FF 4
 			editor.onMouseDown.add(function(editor, e) {
-				if (e.target.nodeName === "HTML") {
+				if (!isDefaultPrevented(e) && e.target.nodeName === "HTML") {
 					var body = editor.getBody();
 
 					// Blur the body it's focused but not correctly focused
@@ -285,6 +293,15 @@ tinymce.util.Quirks = function(editor) {
 
 	/**
 	 * Fixes a Gecko bug where the style attribute gets added to the wrong element when deleting between two block elements.
+	 *
+	 * Fixes do backspace/delete on this:
+	 * <p>bla[ck</p><p style="color:red">r]ed</p>
+	 *
+	 * Would become:
+	 * <p>bla|ed</p>
+	 *
+	 * Instead of:
+	 * <p style="color:red">bla|ed</p>
 	 */
 	function removeStylesWhenDeletingAccrossBlockElements() {
 		function getAttributeApplyFunction() {
@@ -304,7 +321,7 @@ tinymce.util.Quirks = function(editor) {
 		}
 
 		function isSelectionAcrossElements() {
-			return !selection.isCollapsed() && selection.getStart() != selection.getEnd();
+			return !selection.isCollapsed() && dom.getParent(selection.getStart(), dom.isBlock) != dom.getParent(selection.getEnd(), dom.isBlock);
 		}
 
 		function blockEvent(editor, e) {
@@ -315,7 +332,7 @@ tinymce.util.Quirks = function(editor) {
 		editor.onKeyPress.add(function(editor, e) {
 			var applyAttributes;
 
-			if ((e.keyCode == 8 || e.keyCode == 46) && isSelectionAcrossElements()) {
+			if (!isDefaultPrevented(e) && (e.keyCode == 8 || e.keyCode == 46) && isSelectionAcrossElements()) {
 				applyAttributes = getAttributeApplyFunction();
 				editor.getDoc().execCommand('delete', false, null);
 				applyAttributes();
@@ -327,7 +344,7 @@ tinymce.util.Quirks = function(editor) {
 		dom.bind(editor.getDoc(), 'cut', function(e) {
 			var applyAttributes;
 
-			if (isSelectionAcrossElements()) {
+			if (!isDefaultPrevented(e) && isSelectionAcrossElements()) {
 				applyAttributes = getAttributeApplyFunction();
 				editor.onKeyUp.addToTop(blockEvent);
 
@@ -377,7 +394,7 @@ tinymce.util.Quirks = function(editor) {
 	 */
 	function disableBackspaceIntoATable() {
 		editor.onKeyDown.add(function(editor, e) {
-			if (!e.isDefaultPrevented() && e.keyCode === BACKSPACE) {
+			if (!isDefaultPrevented(e) && e.keyCode === BACKSPACE) {
 				if (selection.isCollapsed() && selection.getRng(true).startOffset === 0) {
 					var previousSibling = selection.getNode().previousSibling;
 					if (previousSibling && previousSibling.nodeName && previousSibling.nodeName.toLowerCase() === "table") {
@@ -392,20 +409,19 @@ tinymce.util.Quirks = function(editor) {
 	 * Old IE versions can't properly render BR elements in PRE tags white in contentEditable mode. So this logic adds a \n before the BR so that it will get rendered.
 	 */
 	function addNewLinesBeforeBrInPre() {
-		var documentMode = editor.getDoc().documentMode;
-
 		// IE8+ rendering mode does the right thing with BR in PRE
-		if (documentMode && documentMode > 7) {
+		if (getDocumentMode() > 7) {
 			return;
 		}
 
 		 // Enable display: none in area and add a specific class that hides all BR elements in PRE to
 		 // avoid the caret from getting stuck at the BR elements while pressing the right arrow key
 		setEditorCommandState('RespectVisibilityInDesign', true);
+		editor.contentStyles.push('.mceHideBrInPre pre br {display: none}');
 		dom.addClass(editor.getBody(), 'mceHideBrInPre');
 
 		// Adds a \n before all BR elements in PRE to get them visual
-		editor.parser.addNodeFilter('pre', function(nodes, name) {
+		parser.addNodeFilter('pre', function(nodes, name) {
 			var i = nodes.length, brNodes, j, brElm, sibling;
 
 			while (i--) {
@@ -426,7 +442,7 @@ tinymce.util.Quirks = function(editor) {
 		});
 
 		// Removes any \n before BR elements in PRE since other browsers and in contentEditable=false mode they will be visible
-		editor.serializer.addNodeFilter('pre', function(nodes, name) {
+		serializer.addNodeFilter('pre', function(nodes, name) {
 			var i = nodes.length, brNodes, j, brElm, sibling;
 
 			while (i--) {
@@ -486,7 +502,7 @@ tinymce.util.Quirks = function(editor) {
 			var isDelete, rng, container, offset, brElm, sibling, collapsed;
 
 			isDelete = e.keyCode == DELETE;
-			if (!e.isDefaultPrevented() && (isDelete || e.keyCode == BACKSPACE) && !VK.modifierPressed(e)) {
+			if (!isDefaultPrevented(e) && (isDelete || e.keyCode == BACKSPACE) && !VK.modifierPressed(e)) {
 				rng = selection.getRng();
 				container = rng.startContainer;
 				offset = rng.startOffset;
@@ -535,7 +551,7 @@ tinymce.util.Quirks = function(editor) {
 		editor.onKeyDown.add(function(editor, e) {
 			var rng, container, offset, root, parent;
 
-			if (e.isDefaultPrevented() || e.keyCode != VK.BACKSPACE) {
+			if (isDefaultPrevented(e) || e.keyCode != VK.BACKSPACE) {
 				return;
 			}
 
@@ -559,10 +575,10 @@ tinymce.util.Quirks = function(editor) {
 				editor.formatter.toggle('blockquote', null, parent);
 
 				// Move the caret to the beginning of container
+				rng = dom.createRng();
 				rng.setStart(container, 0);
 				rng.setEnd(container, 0);
 				selection.setRng(rng);
-				selection.collapse(false);
 			}
 		});
 	};
@@ -627,6 +643,18 @@ tinymce.util.Quirks = function(editor) {
 	};
 
 	/**
+	 * WebKit will produce DIV elements here and there by default. But since TinyMCE uses paragraphs by
+	 * default we want to change that behavior.
+	 */
+	function setDefaultBlockType() {
+		if (settings.forced_root_block) {
+			editor.onInit.add(function() {
+				setEditorCommandState('DefaultParagraphSeparator', settings.forced_root_block);
+			});
+		}
+	}
+
+	/**
 	 * Removes ghost selections from images/tables on Gecko.
 	 */
 	function removeGhostSelection() {
@@ -644,16 +672,320 @@ tinymce.util.Quirks = function(editor) {
 	/**
 	 * Deletes the selected image on IE instead of navigating to previous page.
 	 */
-	function deleteImageOnBackSpace() {
+	function deleteControlItemOnBackSpace() {
 		editor.onKeyDown.add(function(editor, e) {
-			if (!e.isDefaultPrevented() && e.keyCode == 8 && selection.getNode().nodeName == 'IMG') {
-				e.preventDefault();
-				editor.undoManager.beforeChange();
-				dom.remove(selection.getNode());
-				editor.undoManager.add();
+			var rng;
+
+			if (!isDefaultPrevented(e) && e.keyCode == BACKSPACE) {
+				rng = editor.getDoc().selection.createRange();
+				if (rng && rng.item) {
+					e.preventDefault();
+					editor.undoManager.beforeChange();
+					dom.remove(rng.item(0));
+					editor.undoManager.add();
+				}
 			}
 		});
 	};
+
+	/**
+	 * IE10 doesn't properly render block elements with the right height until you add contents to them.
+	 * This fixes that by adding a padding-right to all empty text block elements.
+	 * See: https://connect.microsoft.com/IE/feedback/details/743881
+	 */
+	function renderEmptyBlocksFix() {
+		var emptyBlocksCSS;
+
+		// IE10+
+		if (getDocumentMode() >= 10) {
+			emptyBlocksCSS = '';
+			tinymce.each('p div h1 h2 h3 h4 h5 h6'.split(' '), function(name, i) {
+				emptyBlocksCSS += (i > 0 ? ',' : '') + name + ':empty';
+			});
+
+			editor.contentStyles.push(emptyBlocksCSS + '{padding-right: 1px !important}');
+		}
+	};
+
+	/**
+	 * Fakes image/table resizing on WebKit/Opera.
+	 */
+	function fakeImageResize() {
+		var selectedElmX, selectedElmY, selectedElm, selectedElmGhost, selectedHandle, startX, startY, startW, startH, ratio,
+			resizeHandles, width, height, rootDocument = document, editableDoc = editor.getDoc();
+
+		if (!settings.object_resizing || settings.webkit_fake_resize === false) {
+			return;
+		}
+
+		// Try disabling object resizing if WebKit implements resizing in the future
+		setEditorCommandState("enableObjectResizing", false);
+
+		// Details about each resize handle how to scale etc
+		resizeHandles = {
+			// Name: x multiplier, y multiplier, delta size x, delta size y
+			n: [.5, 0, 0, -1],
+			e: [1, .5, 1, 0],
+			s: [.5, 1, 0, 1],
+			w: [0, .5, -1, 0],
+			nw: [0, 0, -1, -1],
+			ne: [1, 0, 1, -1],
+			se: [1, 1, 1, 1],
+			sw : [0, 1, -1, 1]
+		};
+
+		function resizeElement(e) {
+			var deltaX, deltaY;
+
+			// Calc new width/height
+			deltaX = e.screenX - startX;
+			deltaY = e.screenY - startY;
+
+			// Calc new size
+			width = deltaX * selectedHandle[2] + startW;
+			height = deltaY * selectedHandle[3] + startH;
+
+			// Never scale down lower than 5 pixels
+			width = width < 5 ? 5 : width;
+			height = height < 5 ? 5 : height;
+
+			// Constrain proportions when modifier key is pressed or if the nw, ne, sw, se corners are moved on an image
+			if (VK.modifierPressed(e) || (selectedElm.nodeName == "IMG" && selectedHandle[2] * selectedHandle[3] !== 0)) {
+				width = Math.round(height / ratio);
+				height = Math.round(width * ratio);
+			}
+
+			// Update ghost size
+			dom.setStyles(selectedElmGhost, {
+				width: width,
+				height: height
+			});
+
+			// Update ghost X position if needed
+			if (selectedHandle[2] < 0 && selectedElmGhost.clientWidth <= width) {
+				dom.setStyle(selectedElmGhost, 'left', selectedElmX + (startW - width));
+			}
+
+			// Update ghost Y position if needed
+			if (selectedHandle[3] < 0 && selectedElmGhost.clientHeight <= height) {
+				dom.setStyle(selectedElmGhost, 'top', selectedElmY + (startH - height));
+			}
+		}
+
+		function endResize() {
+			function setSizeProp(name, value) {
+				if (value) {
+					// Resize by using style or attribute
+					if (selectedElm.style[name] || !editor.schema.isValid(selectedElm.nodeName.toLowerCase(), name)) {
+						dom.setStyle(selectedElm, name, value);
+					} else {
+						dom.setAttrib(selectedElm, name, value);
+					}
+				}
+			}
+
+			// Set width/height properties
+			setSizeProp('width', width);
+			setSizeProp('height', height);
+
+			dom.unbind(editableDoc, 'mousemove', resizeElement);
+			dom.unbind(editableDoc, 'mouseup', endResize);
+
+			if (rootDocument != editableDoc) {
+				dom.unbind(rootDocument, 'mousemove', resizeElement);
+				dom.unbind(rootDocument, 'mouseup', endResize);
+			}
+
+			// Remove ghost and update resize handle positions
+			dom.remove(selectedElmGhost);
+			showResizeRect(selectedElm);
+		}
+
+		function showResizeRect(targetElm) {
+			var position, targetWidth, targetHeight;
+
+			hideResizeRect();
+
+			// Get position and size of target
+			position = dom.getPos(targetElm);
+			selectedElmX = position.x;
+			selectedElmY = position.y;
+			targetWidth = targetElm.offsetWidth;
+			targetHeight = targetElm.offsetHeight;
+
+			// Reset width/height if user selects a new image/table
+			if (selectedElm != targetElm) {
+				selectedElm = targetElm;
+				width = height = 0;
+			}
+
+			tinymce.each(resizeHandles, function(handle, name) {
+				var handleElm;
+
+				// Get existing or render resize handle
+				handleElm = dom.get('mceResizeHandle' + name);
+				if (!handleElm) {
+					handleElm = dom.add(editableDoc.documentElement, 'div', {
+						id: 'mceResizeHandle' + name,
+						'class': 'mceResizeHandle',
+						style: 'cursor:' + name + '-resize; margin:0; padding:0'
+					});
+
+					dom.bind(handleElm, 'mousedown', function(e) {
+						e.preventDefault();
+
+						endResize();
+
+						startX = e.screenX;
+						startY = e.screenY;
+						startW = selectedElm.clientWidth;
+						startH = selectedElm.clientHeight;
+						ratio = startH / startW;
+						selectedHandle = handle;
+
+						selectedElmGhost = selectedElm.cloneNode(true);
+						dom.addClass(selectedElmGhost, 'mceClonedResizable');
+						dom.setStyles(selectedElmGhost, {
+							left: selectedElmX,
+							top: selectedElmY,
+							margin: 0
+						});
+
+						editableDoc.documentElement.appendChild(selectedElmGhost);
+
+						dom.bind(editableDoc, 'mousemove', resizeElement);
+						dom.bind(editableDoc, 'mouseup', endResize);
+
+						if (rootDocument != editableDoc) {
+							dom.bind(rootDocument, 'mousemove', resizeElement);
+							dom.bind(rootDocument, 'mouseup', endResize);
+						}
+					});
+				} else {
+					dom.show(handleElm);
+				}
+
+				// Position element
+				dom.setStyles(handleElm, {
+					left: (targetWidth * handle[0] + selectedElmX) - (handleElm.offsetWidth / 2),
+					top: (targetHeight * handle[1] + selectedElmY) - (handleElm.offsetHeight / 2)
+				});
+			});
+
+			// Only add resize rectangle on WebKit and only on images
+			if (!tinymce.isOpera && selectedElm.nodeName == "IMG") {
+				selectedElm.setAttribute('data-mce-selected', '1');
+			}
+		}
+
+		function hideResizeRect() {
+			if (selectedElm) {
+				selectedElm.removeAttribute('data-mce-selected');
+			}
+
+			for (var name in resizeHandles) {
+				dom.hide('mceResizeHandle' + name);
+			}
+		}
+
+		// Add CSS for resize handles, cloned element and selected
+		editor.contentStyles.push(
+			'.mceResizeHandle {' +
+				'position: absolute;' +
+				'border: 1px solid black;' +
+				'background: #FFF;' +
+				'width: 5px;' +
+				'height: 5px;' +
+				'z-index: 10000' +
+			'}' +
+			'.mceResizeHandle:hover {' +
+				'background: #000' +
+			'}' +
+			'img[data-mce-selected] {' +
+				'outline: 1px solid black' +
+			'}' +
+			'img.mceClonedResizable, table.mceClonedResizable {' +
+				'position: absolute;' +
+				'outline: 1px dashed black;' +
+				'opacity: .5;' +
+				'z-index: 10000' +
+			'}'
+		);
+
+		function updateResizeRect() {
+			var controlElm = dom.getParent(selection.getNode(), 'table,img');
+
+			// Remove data-mce-selected from all elements since they might have been copied using Ctrl+c/v
+			tinymce.each(dom.select('img[data-mce-selected]'), function(img) {
+				img.removeAttribute('data-mce-selected');
+			});
+
+			if (controlElm) {
+				showResizeRect(controlElm);
+			} else {
+				hideResizeRect();
+			}
+		}
+
+		// Show/hide resize rect when image is selected
+		editor.onNodeChange.add(updateResizeRect);
+
+		// Fixes WebKit quirk where it returns IMG on getNode if caret is after last image in container
+		dom.bind(editableDoc, 'selectionchange', updateResizeRect);
+
+		// Remove the internal attribute when serializing the DOM
+		editor.serializer.addAttributeFilter('data-mce-selected', function(nodes, name) {
+			var i = nodes.length;
+
+			while (i--) {
+				nodes[i].attr(name, null);
+			}
+		});
+	}
+
+	/**
+	 * Old IE versions can't retain contents within noscript elements so this logic will store the contents
+	 * as a attribute and the insert that value as it's raw text when the DOM is serialized.
+	 */
+	function keepNoScriptContents() {
+		if (getDocumentMode() < 9) {
+			parser.addNodeFilter('noscript', function(nodes) {
+				var i = nodes.length, node, textNode;
+
+				while (i--) {
+					node = nodes[i];
+					textNode = node.firstChild;
+
+					if (textNode) {
+						node.attr('data-mce-innertext', textNode.value);
+					}
+				}
+			});
+
+			serializer.addNodeFilter('noscript', function(nodes) {
+				var i = nodes.length, node, textNode, value;
+
+				while (i--) {
+					node = nodes[i];
+					textNode = nodes[i].firstChild;
+
+					if (textNode) {
+						textNode.value = tinymce.html.Entities.decode(textNode.value);
+					} else {
+						// Old IE can't retain noscript value so an attribute is used to store it
+						value = node.attributes.map['data-mce-innertext'];
+						if (value) {
+							node.attr('data-mce-innertext', null);
+							textNode = new tinymce.html.Node('#text', 3);
+							textNode.value = value;
+							textNode.raw = true;
+							node.append(textNode);
+						}
+					}
+				}
+			});
+		}
+	}
 
 	// All browsers
 	disableBackspaceIntoATable();
@@ -666,10 +998,14 @@ tinymce.util.Quirks = function(editor) {
 		cleanupStylesWhenDeleting();
 		inputMethodFocus();
 		selectControlElements();
+		setDefaultBlockType();
 
 		// iOS
 		if (tinymce.isIDevice) {
 			selectionChangeNodeChanged();
+		} else {
+			fakeImageResize();
+			selectAll();
 		}
 	}
 
@@ -679,7 +1015,9 @@ tinymce.util.Quirks = function(editor) {
 		ensureBodyHasRoleApplication();
 		addNewLinesBeforeBrInPre();
 		removePreSerializedStylesWhenSelectingControls();
-		deleteImageOnBackSpace();
+		deleteControlItemOnBackSpace();
+		renderEmptyBlocksFix();
+		keepNoScriptContents();
 	}
 
 	// Gecko
@@ -690,5 +1028,10 @@ tinymce.util.Quirks = function(editor) {
 		setGeckoEditingOptions();
 		addBrAfterLastLinks();
 		removeGhostSelection();
+	}
+
+	// Opera
+	if (tinymce.isOpera) {
+		fakeImageResize();
 	}
 };

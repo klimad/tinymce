@@ -157,11 +157,6 @@
 				return c.constructor === RegExp ? c.test(n.className) : DOM.hasClass(n, c);
 			};
 
-			s = extend({
-				theme : "simple",
-				language : "en"
-			}, s);
-
 			t.settings = s;
 
 			// Legacy call
@@ -279,6 +274,9 @@
 		get : function(id) {
 			if (id === undef)
 				return this.editors;
+
+			if (!this.editors.hasOwnProperty(id))
+				return undef;
 
 			return this.editors[id];
 		},

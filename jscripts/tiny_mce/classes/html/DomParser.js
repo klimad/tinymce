@@ -41,17 +41,40 @@
 
 		function fixInvalidChildren(nodes) {
 			var ni, node, parent, parents, newParent, currentNode, tempNode, childNode, i,
-				childClone, nonEmptyElements, nonSplitableElements, sibling, nextNode;
+				childClone, nonEmptyElements, nonSplitableElements, textBlockElements, sibling, nextNode;
 
 			nonSplitableElements = tinymce.makeMap('tr,td,th,tbody,thead,tfoot,table');
 			nonEmptyElements = schema.getNonEmptyElements();
+			textBlockElements = schema.getTextBlockElements();
 
 			for (ni = 0; ni < nodes.length; ni++) {
 				node = nodes[ni];
 
-				// Already removed
-				if (!node.parent)
+				// Already removed or fixed
+				if (!node.parent || node.fixed)
 					continue;
+
+				// If the invalid element is a text block and the text block is within a parent LI element
+				// Then unwrap the first text block and convert other sibling text blocks to LI elements similar to Word/Open Office
+				if (textBlockElements[node.name] && node.parent.name == 'li') {
+					// Move sibling text blocks after LI element
+					sibling = node.next;
+					while (sibling) {
+						if (textBlockElements[sibling.name]) {
+							sibling.name = 'li';
+							sibling.fixed = true;
+							node.parent.insert(sibling, node.parent);
+						} else {
+							break;
+						}
+
+						sibling = sibling.next;
+					}
+
+					// Unwrap current text block
+					node.unwrap(node);
+					continue;
+				}
 
 				// Get list of all parent nodes until we find a valid parent to stick the child into
 				parents = [node];
@@ -303,9 +326,23 @@
 				}
 			};
 
+			function cloneAndExcludeBlocks(input) {
+				var name, output = {};
+
+				for (name in input) {
+					if (name !== 'li' && name != 'p') {
+						output[name] = input[name];
+					}
+				}
+
+				return output;
+			};
+
 			parser = new tinymce.html.SaxParser({
 				validate : validate,
-				fix_self_closing : !validate, // Let the DOM parser handle <li> in <li> or <p> in <p> for better results
+
+				// Exclude P and LI from DOM parsing since it's treated better by the DOM parser
+				self_closing_elements: cloneAndExcludeBlocks(schema.getSelfClosingElements()),
 
 				cdata: function(text) {
 					node.append(createNode('#cdata', 4)).value = text;
@@ -460,7 +497,8 @@
 							}
 
 							// Trim start white space
-							textNode = node.prev;
+							// Removed due to: #5424
+							/*textNode = node.prev;
 							if (textNode && textNode.type === 3) {
 								text = textNode.value.replace(startWhiteSpaceRegExp, '');
 
@@ -468,7 +506,7 @@
 									textNode.value = text;
 								else
 									textNode.remove();
-							}
+							}*/
 						}
 
 						// Check if we exited a whitespace preserved element
@@ -483,7 +521,7 @@
 									node.empty().append(new Node('#text', '3')).value = '\u00a0';
 								else {
 									// Leave nodes that have a name like <a name="name">
-									if (!node.attributes.map.name) {
+									if (!node.attributes.map.name && !node.attributes.map.id) {
 										tempNode = node.parent;
 										node.empty().remove();
 										node = tempNode;
@@ -635,12 +673,12 @@
 
 		// Force anchor names closed, unless the setting "allow_html_in_named_anchor" is explicitly included.
 		if (!settings.allow_html_in_named_anchor) {
-			self.addAttributeFilter('name', function(nodes, name) {
+			self.addAttributeFilter('id,name', function(nodes, name) {
 				var i = nodes.length, sibling, prevSibling, parent, node;
 
 				while (i--) {
 					node = nodes[i];
-					if (node.name === 'a' && node.firstChild) {
+					if (node.name === 'a' && node.firstChild && !node.attr('href')) {
 						parent = node.parent;
 
 						// Move children after current node

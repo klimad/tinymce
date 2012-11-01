@@ -348,7 +348,7 @@
 
 					// Insert bookmark node and get the parent
 					selection.setContent(bookmarkHtml);
-					parentNode = editor.selection.getNode();
+					parentNode = selection.getNode();
 					rootNode = editor.getBody();
 
 					// Opera will return the document node when selection is in root
@@ -420,6 +420,10 @@
 			mceInsertRawHTML : function(command, ui, value) {
 				selection.setContent('tiny_mce_marker');
 				editor.setContent(editor.getContent().replace(/tiny_mce_marker/g, function() { return value }));
+			},
+
+			mceToggleFormat : function(command, ui, value) {
+				toggleFormat(value);
 			},
 
 			mceSetContent : function(command, ui, value) {
@@ -511,10 +515,15 @@
 			selectAll : function() {
 				var root = dom.getRoot(), rng = dom.createRng();
 
-				rng.setStart(root, 0);
-				rng.setEnd(root, root.childNodes.length);
+				// Old IE does a better job with selectall than new versions
+				if (selection.getRng().setStart) {
+					rng.setStart(root, 0);
+					rng.setEnd(root, root.childNodes.length);
 
-				editor.selection.setRng(rng);
+					selection.setRng(rng);
+				} else {
+					execNativeCommand('SelectAll');
+				}
 			}
 		});
 
@@ -553,7 +562,10 @@
 			},
 
 			'InsertUnorderedList,InsertOrderedList' : function(command) {
-				return dom.getParent(selection.getNode(), command == 'insertunorderedlist' ? 'UL' : 'OL');
+				var list = dom.getParent(selection.getNode(), 'ul,ol');
+				return list && 
+				     (command === 'insertunorderedlist' && list.tagName === 'UL'
+				   || command === 'insertorderedlist' && list.tagName === 'OL');
 			}
 		}, 'state');
 
