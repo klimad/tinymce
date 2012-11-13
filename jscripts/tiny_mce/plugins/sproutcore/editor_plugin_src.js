@@ -53,7 +53,7 @@
 				if (view && !view.get('isExpanded')) {
 					expandedView = TinySC.ExpandedEditorPane.create({ owner: view });
 					if (expandedView) {
-						expandedView.append();
+						ed.plugins.sproutcore.openDialog(ed, expandedView);
 						expandedView.load();
 					}
 				}
@@ -412,14 +412,14 @@
 					.set('insertMode', false)
 					.set('fileSelected', true)
 					.set('node', selectedNode)
-					.set('originalWidth', selectedNode.getAttribute('data-tinysc-original-width'))
-					.set('originalHeight', selectedNode.getAttribute('data-tinysc-original-height'))
+					.set('originalWidth', selectedNode.getAttribute('data-mce-tinysc-original-width'))
+					.set('originalHeight', selectedNode.getAttribute('data-mce-tinysc-original-height'))
 					.set('scaledPixelWidth', selectedNode.getAttribute('width'))
 					.set('scaledPixelHeight', selectedNode.getAttribute('height'))
-					.set('fileName', selectedNode.getAttribute('data-tinysc-file-name'))
-					.set('serverFileID', selectedNode.getAttribute('data-tinysc-server-file-id'))
-					.set('fileSize', selectedNode.getAttribute('data-tinysc-file-size'))
-					.set('imageType', selectedNode.getAttribute('data-tinysc-image-type'))
+					.set('fileName', selectedNode.getAttribute('data-mce-tinysc-file-name'))
+					.set('serverFileID', selectedNode.getAttribute('data-mce-tinysc-server-file-id'))
+					.set('fileSize', selectedNode.getAttribute('data-mce-tinysc-file-size'))
+					.set('imageType', selectedNode.getAttribute('data-mce-tinysc-image-type'))
 				.endPropertyChanges();
 
 				// Now that the controller has calculated the %width/%height (by setting the pixel width/height above),
