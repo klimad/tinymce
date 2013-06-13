@@ -69,11 +69,6 @@
 
 					this.plugins.seapine.readonly = ro;
 
-					if (ro) {
-						// Save the selection before we make it read-only.
-						this.storeSelection();
-					}
-
 					// Turn off contentEditable and make the content unselectable.
 					if (body) {
 						body.contentEditable = !ro;
@@ -92,10 +87,6 @@
 						}
 					}
 
-					if (!ro) {
-						// Restore the selection after turning off read-only.
-						this.restoreSelection();
-					}
 				},
 
 				/**

@@ -82,8 +82,11 @@
 				 * Stores the editor's current selection.
 				 */
 				storeSelection: function() {
-					if (this.selection) {
-						this.plugins.sproutcore.bookmark = this.selection.getBookmark(1);
+					var curBookmark = this.plugins.sproutcore.getBookmark();
+
+					// Only store the selection if we don't already have one
+					if(this.selection && !curBookmark) {
+						this.plugins.sproutcore.setBookmark(this.selection.getBookmark());
 					}
 				},
 
@@ -91,10 +94,14 @@
 				 * Restores the previously saved editor selection.
 				 */
 				restoreSelection: function() {
-					if (this.plugins.sproutcore.bookmark && this.selection) {
-						this.selection.moveToBookmark(this.plugins.sproutcore.bookmark);
-						this.plugins.sproutcore.bookmark = null;
+					var bm = this.plugins.sproutcore.getBookmark();
+
+					if(bm) {
+						this.selection.moveToBookmark(bm);
 					}
+
+					// After we restore the selection, remove the bookmark
+					this.plugins.sproutcore.setBookmark(null);
 				}
 			});
 		},
@@ -118,10 +125,6 @@
 
 			if (app && tinymce.is(dialogOpen, 'string')) {
 				dialogOpen = app[dialogOpen];
-			}
-
-			if (!view.get('editorEnabledWhileOpen')) {
-				ed.makeReadOnly(true);
 			}
 
 			if (app && dialogOpen) {
@@ -152,13 +155,27 @@
 				dialogClose = app[dialogClose];
 			}
 
-			ed.makeReadOnly(false);
-
 			if (app && dialogClose) {
 				dialogClose.call(app, view);
 			} else {
 				view.remove();
 			}
+		},
+
+		/**
+		 * Sets the bookmark in the sproutcore plugin for this editor
+		 * @param {Object} bm bookmark object
+		 */
+		setBookmark: function(bm) {
+			this._bookmark = bm;
+		},
+
+		/**
+		 * Gets the saved bookmark in the sproutcore plugin for this editor
+		 * @return {*}
+		 */
+		getBookmark: function() {
+			return this._bookmark;
 		},
 
 		/**
