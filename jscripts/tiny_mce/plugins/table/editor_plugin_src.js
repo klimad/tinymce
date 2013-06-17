@@ -834,12 +834,14 @@
 
 					if ((value = dom.getAttrib(node, 'width'))) {
 						dom.setStyle(node, 'width', value);
-						dom.setAttrib(node, 'width', '');
+						//Seapine change, leave this attribute in place to work with the Qt normalizer
+						//dom.setAttrib(node, 'width', '');
 					}
 
 					if ((value = dom.getAttrib(node, 'height'))) {
 						dom.setStyle(node, 'height', value);
-						dom.setAttrib(node, 'height', '');
+						//Seapine change, leave this attribute in place to work with the Qt normalizer
+						//dom.setAttrib(node, 'height', '');
 					}
 				}
 			});
