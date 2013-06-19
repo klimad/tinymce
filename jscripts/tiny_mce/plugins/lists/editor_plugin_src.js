@@ -519,7 +519,7 @@
 
 				function adjustIndentForNewList(element) {
 					// If there's a margin-left, outdent one level to account for the extra list margin.
-					if (element.style.marginLeft || element.style.paddingLeft) {
+					if (element && element.style && (element.style.marginLeft || element.style.paddingLeft)) {
 						t.adjustPaddingFunction(false)(element);
 					}
 				}
