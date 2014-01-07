@@ -212,6 +212,51 @@ task("bundle", ["minify"], function(params) {
 	fs.writeFileSync("js/tinymce/tinymce.full.min.js", minContent);
 });
 
+desc("Bundles in plugins/themes without minifying into a tinymce.full.js file");
+task("dev-bundle", function (params) {
+  var inputFiles, fullContent, addPlugins = true;
+
+  function appendAddon (name) {
+    if (addPlugins) {
+      if (name == '*') {
+        glob.sync('js/tinymce/plugins/*/plugin.js').forEach(function (filePath) {
+          fullContent += "\n;" + fs.readFileSync(filePath).toString();
+        });
+      } else {
+        fullContent += "\n;" + fs.readFileSync("js/tinymce/plugins/" + name + "/plugin.js").toString();
+      }
+    } else {
+      if (name == '*') {
+        glob.sync('js/tinymce/themes/*/theme.min.js').forEach(function (filePath) {
+          fullContent += "\n;" + fs.readFileSync(filePath).toString();
+        });
+      } else {
+        fullContent += "\n;" + fs.readFileSync("js/tinymce/themes/" + name + "/theme.js").toString();
+      }
+    }
+  }
+
+  fullContent = fs.readFileSync("js/tinymce/tinymce.js").toString();
+
+  if (arguments[0] == '*') {
+    arguments = ['themes:*', 'plugins:*'];
+  }
+
+  for (var i = 0; i < arguments.length; i++) {
+    var args = arguments[i].split(':');
+
+    if (args[0] == 'plugins') {
+      addPlugins = true;
+    } else if (args[0] == 'themes') {
+      addPlugins = false;
+    }
+
+    appendAddon(args[1] || args[0]);
+  }
+
+  fs.writeFileSync("js/tinymce/tinymce.full.js", fullContent);
+});
+
 desc("Runs JSHint on core source files");
 task("jshint", ["jshint-core", "jshint-plugins", "jshint-themes"], function () {});
 
