@@ -399,7 +399,7 @@ task("zip-production", [], function () {
 		exclude: [
 			"js/tinymce/tinymce.js",
 			"js/tinymce/tinymce.dev.js",
-      "js/tinymce/tinymce.full.js",
+			"js/tinymce/tinymce.full.js",
 			"js/tinymce/tinymce.full.min.js",
 			"js/tinymce/tinymce.jquery.js",
 			"js/tinymce/tinymce.jquery.min.js",
